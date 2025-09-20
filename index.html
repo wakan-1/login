@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام تسجيل الحضور والانصراف</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Login Form -->
+    <div id="loginForm" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="fas fa-clock"></i>
+                <h1>نظام تسجيل الحضور والانصراف</h1>
+                <p>أدخل بياناتك لتسجيل الدخول</p>
+            </div>
+            
+            <div id="loginError" class="error-message" style="display: none;"></div>
+            
+            <form id="loginFormElement">
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <div class="input-group">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="loginEmail" required placeholder="example@company.com">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <div class="input-group">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="loginPassword" required placeholder="••••••••">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary" id="loginBtn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    تسجيل الدخول
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>ليس لديك حساب؟ <a href="#" id="showRegister">إنشاء حساب جديد</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="registerForm" class="login-container" style="display: none;">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="fas fa-user-plus"></i>
+                <h1>إنشاء حساب جديد</h1>
+                <p>أدخل بياناتك لإنشاء حساب</p>
+            </div>
+            
+            <div id="registerError" class="error-message" style="display: none;"></div>
+            
+            <form id="registerFormElement">
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <div class="input-group">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="registerEmail" required placeholder="example@company.com">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>الاسم الكامل</label>
+                    <div class="input-group">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="registerName" required placeholder="محمد أحمد">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>رقم الموظف</label>
+                    <div class="input-group">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="registerEmployeeId" required placeholder="EMP001">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>نوع الحساب</label>
+                    <select id="registerRole" class="form-select">
+                        <option value="user">موظف</option>
+                        <option value="admin">مدير</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <div class="input-group">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="registerPassword" required placeholder="••••••••">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary" id="registerBtn">
+                    <i class="fas fa-user-plus"></i>
+                    إنشاء الحساب
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>لديك حساب؟ <a href="#" id="showLogin">تسجيل الدخول</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Dashboard -->
+    <div id="userDashboard" class="dashboard" style="display: none;">
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="user-info">
+                    <h1>مرحباً، <span id="userName"></span></h1>
+                    <p>رقم الموظف: <span id="userEmployeeId"></span></p>
+                </div>
+                <button id="logoutBtn" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    تسجيل الخروج
+                </button>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <!-- Today's Status -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-clock"></i>
+                    <h2>حالة اليوم</h2>
+                </div>
+                
+                <div id="statusMessage" class="status-message" style="display: none;"></div>
+                
+                <div class="status-grid">
+                    <div class="status-item check-in">
+                        <h3>الحضور</h3>
+                        <div id="checkInStatus" class="status-value">
+                            <i class="fas fa-times-circle"></i>
+                            لم يسجل بعد
+                        </div>
+                    </div>
+                    <div class="status-item check-out">
+                        <h3>الانصراف</h3>
+                        <div id="checkOutStatus" class="status-value">
+                            <i class="fas fa-times-circle"></i>
+                            لم يسجل بعد
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button id="checkInBtn" class="btn-check-in">
+                        <i class="fas fa-map-marker-alt"></i>
+                        تسجيل الحضور
+                    </button>
+                    <button id="checkOutBtn" class="btn-check-out">
+                        <i class="fas fa-map-marker-alt"></i>
+                        تسجيل الانصراف
+                    </button>
+                </div>
+            </div>
+
+            <!-- Attendance Records -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-calendar"></i>
+                    <h2>سجل الحضور</h2>
+                    <div class="export-buttons">
+                        <button id="exportExcel" class="btn-export">
+                            <i class="fas fa-file-excel"></i>
+                            Excel
+                        </button>
+                        <button id="exportPDF" class="btn-export">
+                            <i class="fas fa-file-pdf"></i>
+                            PDF
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table id="attendanceTable">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>الحضور</th>
+                                <th>الانصراف</th>
+                                <th>إجمالي الساعات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTableBody">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminDashboard" class="dashboard" style="display: none;">
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1>لوحة تحكم الإدارة</h1>
+                <button id="adminLogoutBtn" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    تسجيل الخروج
+                </button>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="users">
+                    <i class="fas fa-users"></i>
+                    إدارة المستخدمين
+                </button>
+                <button class="tab-btn" data-tab="attendance">
+                    <i class="fas fa-calendar"></i>
+                    سجل الحضور
+                </button>
+            </div>
+
+            <!-- Users Tab -->
+            <div id="usersTab" class="tab-content active">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="search-container">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="userSearch" placeholder="البحث عن مستخدم...">
+                        </div>
+                        <div class="header-actions">
+                            <button id="addUserBtn" class="btn-primary">
+                                <i class="fas fa-user-plus"></i>
+                                إضافة مستخدم
+                            </button>
+                            <button id="exportUsersBtn" class="btn-export">
+                                <i class="fas fa-download"></i>
+                                تصدير Excel
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>رقم الموظف</th>
+                                    <th>الاسم الكامل</th>
+                                    <th>البريد الإلكتروني</th>
+                                    <th>النوع</th>
+                                    <th>الحالة</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Tab -->
+            <div id="attendanceTab" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="search-container">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="attendanceSearch" placeholder="البحث في السجلات...">
+                        </div>
+                        <button id="exportAttendanceBtn" class="btn-export">
+                            <i class="fas fa-download"></i>
+                            تصدير Excel
+                        </button>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table id="adminAttendanceTable">
+                            <thead>
+                                <tr>
+                                    <th>رقم الموظف</th>
+                                    <th>اسم الموظف</th>
+                                    <th>التاريخ</th>
+                                    <th>الحضور</th>
+                                    <th>الانصراف</th>
+                                    <th>إجمالي الساعات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminAttendanceTableBody">
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="userModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">إضافة مستخدم جديد</h2>
+                <button class="modal-close" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="userModalForm">
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <input type="email" id="modalEmail" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>الاسم الكامل</label>
+                    <input type="text" id="modalName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>رقم الموظف</label>
+                    <input type="text" id="modalEmployeeId" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>النوع</label>
+                    <select id="modalRole">
+                        <option value="user">موظف</option>
+                        <option value="admin">مدير</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="passwordGroup">
+                    <label>كلمة المرور</label>
+                    <input type="password" id="modalPassword">
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary" id="saveUserBtn">
+                        حفظ
+                    </button>
+                    <button type="button" class="btn-secondary" id="cancelModal">
+                        إلغاء
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>جاري التحميل...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
