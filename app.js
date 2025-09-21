@@ -138,13 +138,13 @@ async function handleRegister(e) {
             // Create user profile
             const { error: profileError } = await supabase
                 .from('users')
-                .insert({
+                .insert([{
                     id: data.user.id,
                     email,
                     full_name: fullName,
                     employee_id: employeeId,
                     role: role
-                });
+                }]);
 
             if (profileError) throw profileError;
 
@@ -154,7 +154,11 @@ async function handleRegister(e) {
         }
 
     } catch (error) {
-        showError('registerError', error.message);
+        let errorMessage = error.message;
+        if (error.message.includes('For security purposes')) {
+            errorMessage = 'يرجى الانتظار قليلاً قبل إنشاء حساب آخر (إجراء أمني)';
+        }
+        showError('registerError', errorMessage);
     }
 
     showLoading(false);
@@ -686,13 +690,13 @@ async function handleSaveUser(e) {
             if (data.user) {
                 const { error: profileError } = await supabase
                     .from('users')
-                    .insert({
+                    .insert([{
                         id: data.user.id,
                         email,
                         full_name: fullName,
                         employee_id: employeeId,
                         role
-                    });
+                    }]);
 
                 if (profileError) throw profileError;
             }
