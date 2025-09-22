@@ -129,7 +129,15 @@ async function handleRegister(e) {
         // Sign up user
         const { data, error } = await supabase.auth.signUp({
             email,
-            password
+            password,
+            options: {
+                emailRedirectTo: undefined,
+                data: {
+                    full_name: fullName,
+                    employee_id: employeeId,
+                    role: role
+                }
+            }
         });
 
         if (error) throw error;
@@ -148,15 +156,26 @@ async function handleRegister(e) {
 
             if (profileError) throw profileError;
 
-            currentUser = data.user;
-            await loadUserProfile();
-            showDashboard();
+            // تحقق من حالة المستخدم
+            if (data.user.email_confirmed_at || !data.user.confirmation_sent_at) {
+                // المستخدم مؤكد أو لا يحتاج تأكيد
+                currentUser = data.user;
+                await loadUserProfile();
+                showDashboard();
+            } else {
+                // في حالة إرسال إيميل التأكيد
+                showError('registerError', 'تم إنشاء الحساب بنجاح! يرجى تسجيل الدخول.');
+                document.getElementById('registerForm').style.display = 'none';
+                document.getElementById('loginForm').style.display = 'block';
+            }
         }
 
     } catch (error) {
         let errorMessage = error.message;
         if (error.message.includes('For security purposes')) {
             errorMessage = 'يرجى الانتظار قليلاً قبل إنشاء حساب آخر (إجراء أمني)';
+        } else if (error.message.includes('User already registered')) {
+            errorMessage = 'هذا الإيميل مسجل مسبقاً، يرجى تسجيل الدخول';
         }
         showError('registerError', errorMessage);
     }
