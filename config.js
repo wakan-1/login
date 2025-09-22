@@ -4,9 +4,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // Office Location Configuration (Riyadh coordinates as default)
 const OFFICE_LOCATION = {
-    latitude: 24.7136,
-    longitude: 46.6753,
-    radius: 50, // meters
+    latitude: 24.429328,
+    longitude: 39.653926,
+    radius: 250, // meters
     name: 'المكتب الرئيسي'
 };
 
