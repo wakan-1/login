@@ -126,48 +126,50 @@ async function handleRegister(e) {
     const role = document.getElementById('registerRole').value;
 
     try {
-        // Sign up user
-        const { data, error } = await supabase.auth.signUp({
+        // التحقق من عدم وجود employee_id مسبقاً
+        const { data: existingEmployee, error: checkEmployeeError } = await supabase
+            .from('users')
+            .select('employee_id')
+            .eq('employee_id', employeeId)
+            .single();
+
+        if (existingEmployee) {
+            throw new Error('رقم الموظف موجود مسبقاً، يرجى اختيار رقم آخر');
+        }
+
+        // إنشاء المستخدم في auth
+        const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
-            password,
-            options: {
-                emailRedirectTo: undefined,
-                data: {
-                    full_name: fullName,
-                    employee_id: employeeId,
-                    role: role
-                }
-            }
+            password
         });
 
-        if (error) throw error;
+        if (authError) throw authError;
 
-        if (data.user) {
-            // Create user profile
+        if (authData.user) {
+            // إنشاء الملف الشخصي في جدول users
             const { error: profileError } = await supabase
                 .from('users')
-                .insert([{
-                    id: data.user.id,
-                    email,
+                .insert({
+                    id: authData.user.id,
+                    email: email,
                     full_name: fullName,
                     employee_id: employeeId,
-                    role: role
-                }]);
+                    role: role,
+                    is_active: true
+                });
 
-            if (profileError) throw profileError;
-
-            // تحقق من حالة المستخدم
-            if (data.user.email_confirmed_at || !data.user.confirmation_sent_at) {
-                // المستخدم مؤكد أو لا يحتاج تأكيد
-                currentUser = data.user;
-                await loadUserProfile();
-                showDashboard();
-            } else {
-                // في حالة إرسال إيميل التأكيد
-                showError('registerError', 'تم إنشاء الحساب بنجاح! يرجى تسجيل الدخول.');
-                document.getElementById('registerForm').style.display = 'none';
-                document.getElementById('loginForm').style.display = 'block';
+            if (profileError) {
+                // إذا فشل إنشاء الملف الشخصي، احذف المستخدم من auth
+                await supabase.auth.admin.deleteUser(authData.user.id);
+                throw new Error('فشل في إنشاء الملف الشخصي: ' + profileError.message);
             }
+
+            // تسجيل الدخول التلقائي
+            currentUser = authData.user;
+            await loadUserProfile();
+            showDashboard();
+            
+            showStatusMessage('تم إنشاء الحساب بنجاح!', 'success');
         }
 
     } catch (error) {
@@ -176,6 +178,12 @@ async function handleRegister(e) {
             errorMessage = 'يرجى الانتظار قليلاً قبل إنشاء حساب آخر (إجراء أمني)';
         } else if (error.message.includes('User already registered')) {
             errorMessage = 'هذا الإيميل مسجل مسبقاً، يرجى تسجيل الدخول';
+        } else if (error.message.includes('duplicate key value violates unique constraint')) {
+            if (error.message.includes('email')) {
+                errorMessage = 'هذا الإيميل مسجل مسبقاً';
+            } else if (error.message.includes('employee_id')) {
+                errorMessage = 'رقم الموظف موجود مسبقاً، يرجى اختيار رقم آخر';
+            }
         }
         showError('registerError', errorMessage);
     }
@@ -198,19 +206,53 @@ async function handleLogout() {
 // User profile functions
 async function loadUserProfile() {
     try {
+        // التأكد من وجود المستخدم الحالي
+        if (!currentUser || !currentUser.id) {
+            throw new Error('لا يوجد مستخدم مسجل دخول');
+        }
+
         const { data, error } = await supabase
             .from('users')
             .select('*')
             .eq('id', currentUser.id)
             .single();
 
-        if (error) throw error;
+        if (error) {
+            if (error.code === 'PGRST116') {
+                // المستخدم غير موجود في جدول users، إنشاؤه
+                const { error: createError } = await supabase
+                    .from('users')
+                    .insert({
+                        id: currentUser.id,
+                        email: currentUser.email,
+                        full_name: currentUser.user_metadata?.full_name || 'مستخدم جديد',
+                        employee_id: currentUser.user_metadata?.employee_id || 'EMP' + Date.now(),
+                        role: currentUser.user_metadata?.role || 'user'
+                    });
+
+                if (createError) throw createError;
+
+                // إعادة تحميل البيانات
+                const { data: newData, error: newError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', currentUser.id)
+                    .single();
+
+                if (newError) throw newError;
+                currentUserProfile = newData;
+            } else {
+                throw error;
+            }
+        } else {
+            currentUserProfile = data;
+        }
         
-        currentUserProfile = data;
         updateUserInfo();
         
     } catch (error) {
-        console.error('Error loading user profile:', error);
+        console.error('خطأ في تحميل بيانات المستخدم:', error);
+        showStatusMessage('خطأ في تحميل بيانات المستخدم: ' + error.message, 'error');
     }
 }
 
@@ -302,6 +344,19 @@ async function handleCheckIn() {
     showLoading(true);
     
     try {
+        // التأكد من وجود المستخدم
+        if (!currentUser || !currentUser.id) {
+            throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
+        // التأكد من وجود الملف الشخصي
+        if (!currentUserProfile) {
+            await loadUserProfile();
+            if (!currentUserProfile) {
+                throw new Error('لا يمكن العثور على بيانات المستخدم');
+            }
+        }
+
         const location = await getCurrentLocation();
         
         if (!isWithinOfficeRadius(location)) {
@@ -310,6 +365,18 @@ async function handleCheckIn() {
 
         const today = new Date().toISOString().split('T')[0];
         
+        // التحقق من عدم وجود سجل حضور لليوم
+        const { data: existingRecord } = await supabase
+            .from('attendance_records')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('date', today)
+            .single();
+
+        if (existingRecord) {
+            throw new Error('تم تسجيل الحضور مسبقاً لهذا اليوم');
+        }
+
         const { data, error } = await supabase
             .from('attendance_records')
             .insert({
@@ -328,6 +395,7 @@ async function handleCheckIn() {
         await loadUserAttendanceRecords();
         
     } catch (error) {
+        console.error('خطأ في تسجيل الحضور:', error);
         showStatusMessage(error.message, 'error');
     }
     
@@ -338,6 +406,11 @@ async function handleCheckOut() {
     showLoading(true);
     
     try {
+        // التأكد من وجود المستخدم
+        if (!currentUser || !currentUser.id) {
+            throw new Error('يجب تسجيل الدخول أولاً');
+        }
+
         const location = await getCurrentLocation();
         
         if (!isWithinOfficeRadius(location)) {
@@ -364,6 +437,7 @@ async function handleCheckOut() {
         await loadUserAttendanceRecords();
         
     } catch (error) {
+        console.error('خطأ في تسجيل الانصراف:', error);
         showStatusMessage(error.message, 'error');
     }
     
