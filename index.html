@@ -43,74 +43,11 @@
             </form>
             
             <div class="login-footer">
-                <p>ليس لديك حساب؟ <a href="#" id="showRegister">إنشاء حساب جديد</a></p>
+                <p>للحصول على حساب جديد، يرجى التواصل مع الإدارة</p>
             </div>
         </div>
     </div>
 
-    <!-- Register Form -->
-    <div id="registerForm" class="login-container" style="display: none;">
-        <div class="login-card">
-            <div class="login-header">
-                <i class="fas fa-user-plus"></i>
-                <h1>إنشاء حساب جديد</h1>
-                <p>أدخل بياناتك لإنشاء حساب</p>
-            </div>
-            
-            <div id="registerError" class="error-message" style="display: none;"></div>
-            
-            <form id="registerFormElement">
-                <div class="form-group">
-                    <label>البريد الإلكتروني</label>
-                    <div class="input-group">
-                        <i class="fas fa-envelope"></i>
-                        <input type="email" id="registerEmail" required placeholder="example@company.com">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>الاسم الكامل</label>
-                    <div class="input-group">
-                        <i class="fas fa-user"></i>
-                        <input type="text" id="registerName" required placeholder="محمد أحمد">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>رقم الموظف</label>
-                    <div class="input-group">
-                        <i class="fas fa-id-card"></i>
-                        <input type="text" id="registerEmployeeId" required placeholder="EMP001">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>نوع الحساب</label>
-                    <select id="registerRole" class="form-select">
-                        <option value="user">موظف</option>
-                        <option value="admin">مدير</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>كلمة المرور</label>
-                    <div class="input-group">
-                        <i class="fas fa-lock"></i>
-                        <input type="password" id="registerPassword" required placeholder="••••••••">
-                    </div>
-                </div>
-                
-                <button type="submit" class="btn-primary" id="registerBtn">
-                    <i class="fas fa-user-plus"></i>
-                    إنشاء الحساب
-                </button>
-            </form>
-            
-            <div class="login-footer">
-                <p>لديك حساب؟ <a href="#" id="showLogin">تسجيل الدخول</a></p>
-            </div>
-        </div>
-    </div>
 
     <!-- User Dashboard -->
     <div id="userDashboard" class="dashboard" style="display: none;">
@@ -170,17 +107,7 @@
             <div class="card">
                 <div class="card-header">
                     <i class="fas fa-calendar"></i>
-                    <h2>سجل الحضور</h2>
-                    <div class="export-buttons">
-                        <button id="exportExcel" class="btn-export">
-                            <i class="fas fa-file-excel"></i>
-                            Excel
-                        </button>
-                        <button id="exportPDF" class="btn-export">
-                            <i class="fas fa-file-pdf"></i>
-                            PDF
-                        </button>
-                    </div>
+                    <h2>سجل الحضور الشخصي</h2>
                 </div>
                 
                 <div class="table-container">
@@ -275,10 +202,16 @@
                             <i class="fas fa-search"></i>
                             <input type="text" id="attendanceSearch" placeholder="البحث في السجلات...">
                         </div>
-                        <button id="exportAttendanceBtn" class="btn-export">
-                            <i class="fas fa-download"></i>
-                            تصدير Excel
-                        </button>
+                        <div class="export-buttons">
+                            <button id="exportAttendanceExcel" class="btn-export">
+                                <i class="fas fa-file-excel"></i>
+                                Excel
+                            </button>
+                            <button id="exportAttendancePDF" class="btn-export">
+                                <i class="fas fa-file-pdf"></i>
+                                PDF
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="table-container">
