@@ -36,15 +36,6 @@ async function initializeApp() {
 function setupEventListeners() {
     // Login/Register forms
     document.getElementById('loginFormElement').addEventListener('submit', handleLogin);
-    document.getElementById('registerFormElement').addEventListener('submit', handleRegister);
-    document.getElementById('showRegister').addEventListener('click', () => {
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('registerForm').style.display = 'block';
-    });
-    document.getElementById('showLogin').addEventListener('click', () => {
-        document.getElementById('registerForm').style.display = 'none';
-        document.getElementById('loginForm').style.display = 'block';
-    });
 
     // Dashboard buttons
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
@@ -52,14 +43,11 @@ function setupEventListeners() {
     document.getElementById('checkInBtn').addEventListener('click', handleCheckIn);
     document.getElementById('checkOutBtn').addEventListener('click', handleCheckOut);
 
-    // Export buttons
-    document.getElementById('exportExcel').addEventListener('click', exportUserAttendanceToExcel);
-    document.getElementById('exportPDF').addEventListener('click', exportUserAttendanceToPDF);
-
     // Admin functions
     document.getElementById('addUserBtn').addEventListener('click', showAddUserModal);
     document.getElementById('exportUsersBtn').addEventListener('click', exportUsersToExcel);
-    document.getElementById('exportAttendanceBtn').addEventListener('click', exportAllAttendanceToExcel);
+    document.getElementById('exportAttendanceExcel').addEventListener('click', exportAllAttendanceToExcel);
+    document.getElementById('exportAttendancePDF').addEventListener('click', exportAllAttendanceToPDF);
 
     // Modal functions
     document.getElementById('closeModal').addEventListener('click', hideUserModal);
@@ -110,82 +98,6 @@ async function handleLogin(e) {
         
     } catch (error) {
         showError('loginError', error.message);
-    }
-
-    showLoading(false);
-}
-
-async function handleRegister(e) {
-    e.preventDefault();
-    showLoading(true);
-
-    const email = document.getElementById('registerEmail').value;
-    const password = document.getElementById('registerPassword').value;
-    const fullName = document.getElementById('registerName').value;
-    const employeeId = document.getElementById('registerEmployeeId').value;
-    const role = document.getElementById('registerRole').value;
-
-    try {
-        // التحقق من عدم وجود employee_id مسبقاً
-        const { data: existingEmployee, error: checkEmployeeError } = await supabase
-            .from('users')
-            .select('employee_id')
-            .eq('employee_id', employeeId)
-            .single();
-
-        if (existingEmployee) {
-            throw new Error('رقم الموظف موجود مسبقاً، يرجى اختيار رقم آخر');
-        }
-
-        // إنشاء المستخدم في auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-            email,
-            password
-        });
-
-        if (authError) throw authError;
-
-        if (authData.user) {
-            // إنشاء الملف الشخصي في جدول users
-            const { error: profileError } = await supabase
-                .from('users')
-                .insert({
-                    id: authData.user.id,
-                    email: email,
-                    full_name: fullName,
-                    employee_id: employeeId,
-                    role: role,
-                    is_active: true
-                });
-
-            if (profileError) {
-                // إذا فشل إنشاء الملف الشخصي، احذف المستخدم من auth
-                await supabase.auth.admin.deleteUser(authData.user.id);
-                throw new Error('فشل في إنشاء الملف الشخصي: ' + profileError.message);
-            }
-
-            // تسجيل الدخول التلقائي
-            currentUser = authData.user;
-            await loadUserProfile();
-            showDashboard();
-            
-            showStatusMessage('تم إنشاء الحساب بنجاح!', 'success');
-        }
-
-    } catch (error) {
-        let errorMessage = error.message;
-        if (error.message.includes('For security purposes')) {
-            errorMessage = 'يرجى الانتظار قليلاً قبل إنشاء حساب آخر (إجراء أمني)';
-        } else if (error.message.includes('User already registered')) {
-            errorMessage = 'هذا الإيميل مسجل مسبقاً، يرجى تسجيل الدخول';
-        } else if (error.message.includes('duplicate key value violates unique constraint')) {
-            if (error.message.includes('email')) {
-                errorMessage = 'هذا الإيميل مسجل مسبقاً';
-            } else if (error.message.includes('employee_id')) {
-                errorMessage = 'رقم الموظف موجود مسبقاً، يرجى اختيار رقم آخر';
-            }
-        }
-        showError('registerError', errorMessage);
     }
 
     showLoading(false);
@@ -772,6 +684,17 @@ async function handleSaveUser(e) {
 
             if (error) throw error;
         } else {
+            // التحقق من عدم وجود رقم الموظف مسبقاً
+            const { data: existingUser, error: checkError } = await supabase
+                .from('users')
+                .select('employee_id')
+                .eq('employee_id', employeeId)
+                .single();
+
+            if (existingUser) {
+                throw new Error('رقم الموظف موجود مسبقاً، يرجى اختيار رقم آخر');
+            }
+
             // Create new user
             const { data, error } = await supabase.auth.signUp({
                 email,
@@ -781,17 +704,32 @@ async function handleSaveUser(e) {
             if (error) throw error;
 
             if (data.user) {
+                // انتظار قصير للتأكد من إنشاء المستخدم في auth
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
                 const { error: profileError } = await supabase
                     .from('users')
-                    .insert([{
+                    .insert({
                         id: data.user.id,
                         email,
                         full_name: fullName,
                         employee_id: employeeId,
-                        role
-                    }]);
+                        role,
+                        is_active: true
+                    });
 
-                if (profileError) throw profileError;
+                if (profileError) {
+                    console.error('خطأ في إنشاء الملف الشخصي:', profileError);
+                    
+                    // حذف المستخدم من auth إذا فشل إنشاء الملف الشخصي
+                    try {
+                        await supabase.auth.admin.deleteUser(data.user.id);
+                    } catch (deleteError) {
+                        console.error('خطأ في حذف المستخدم من auth:', deleteError);
+                    }
+                    
+                    throw new Error('فشل في إنشاء الملف الشخصي: ' + profileError.message);
+                }
             }
         }
 
@@ -799,7 +737,13 @@ async function handleSaveUser(e) {
         await loadAllUsers();
         
     } catch (error) {
-        alert('خطأ في حفظ المستخدم: ' + error.message);
+        let errorMessage = error.message;
+        if (error.message.includes('For security purposes')) {
+            errorMessage = 'يرجى الانتظار قليلاً قبل إنشاء حساب آخر (إجراء أمني)';
+        } else if (error.message.includes('User already registered')) {
+            errorMessage = 'هذا الإيميل مسجل مسبقاً';
+        }
+        alert('خطأ في حفظ المستخدم: ' + errorMessage);
     }
     
     showLoading(false);
@@ -852,79 +796,6 @@ function filterAttendance() {
 }
 
 // Export functions
-async function exportUserAttendanceToExcel() {
-    try {
-        const { data, error } = await supabase
-            .from('attendance_records')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .order('date', { ascending: false });
-
-        if (error) throw error;
-
-        const wsData = [
-            ['التاريخ', 'الحضور', 'الانصراف', 'إجمالي الساعات'],
-            ...data.map(record => [
-                new Date(record.date).toLocaleDateString('ar-SA'),
-                record.check_in ? new Date(record.check_in).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : 'لم يسجل',
-                record.check_out ? new Date(record.check_out).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : 'لم يسجل',
-                record.total_hours ? `${record.total_hours.toFixed(2)} ساعة` : 'غير محسوب'
-            ])
-        ];
-
-        const ws = XLSX.utils.aoa_to_sheet(wsData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'سجل الحضور');
-        
-        const fileName = `attendance-${currentUserProfile.employee_id}-${new Date().toISOString().split('T')[0]}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-        
-    } catch (error) {
-        alert('خطأ في تصدير الملف: ' + error.message);
-    }
-}
-
-async function exportUserAttendanceToPDF() {
-    try {
-        const { data, error } = await supabase
-            .from('attendance_records')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .order('date', { ascending: false });
-
-        if (error) throw error;
-
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF();
-        
-        // Add title
-        pdf.text('سجل الحضور والانصراف', 20, 20);
-        pdf.text(`الموظف: ${currentUserProfile.full_name}`, 20, 30);
-        pdf.text(`رقم الموظف: ${currentUserProfile.employee_id}`, 20, 40);
-        
-        let yPosition = 60;
-        data.forEach(record => {
-            const date = new Date(record.date).toLocaleDateString('ar-SA');
-            const checkIn = record.check_in ? 
-                new Date(record.check_in).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : 
-                'غير مسجل';
-            const checkOut = record.check_out ? 
-                new Date(record.check_out).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : 
-                'غير مسجل';
-            const hours = record.total_hours ? record.total_hours.toFixed(2) : 'غير محسوب';
-            
-            pdf.text(`${date} | ${checkIn} - ${checkOut} | ${hours} ساعة`, 20, yPosition);
-            yPosition += 10;
-        });
-        
-        const fileName = `attendance-${currentUserProfile.employee_id}-${new Date().toISOString().split('T')[0]}.pdf`;
-        pdf.save(fileName);
-        
-    } catch (error) {
-        alert('خطأ في تصدير الملف: ' + error.message);
-    }
-}
-
 async function exportUsersToExcel() {
     try {
         const { data, error } = await supabase
@@ -994,6 +865,55 @@ async function exportAllAttendanceToExcel() {
     }
 }
 
+async function exportAllAttendanceToPDF() {
+    try {
+        const { data, error } = await supabase
+            .from('attendance_records')
+            .select(`
+                *,
+                users!inner(full_name, employee_id)
+            `)
+            .order('date', { ascending: false });
+
+        if (error) throw error;
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF();
+        
+        // Add title
+        pdf.text('تقرير حضور جميع الموظفين', 20, 20);
+        pdf.text(`تاريخ التقرير: ${new Date().toLocaleDateString('ar-SA')}`, 20, 30);
+        
+        let yPosition = 50;
+        data.forEach(record => {
+            const date = new Date(record.date).toLocaleDateString('ar-SA');
+            const checkIn = record.check_in ? 
+                new Date(record.check_in).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : 
+                'غير مسجل';
+            const checkOut = record.check_out ? 
+                new Date(record.check_out).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : 
+                'غير مسجل';
+            const hours = record.total_hours ? record.total_hours.toFixed(2) : 'غير محسوب';
+            
+            pdf.text(`${record.users.employee_id} - ${record.users.full_name}`, 20, yPosition);
+            pdf.text(`${date} | ${checkIn} - ${checkOut} | ${hours} ساعة`, 20, yPosition + 10);
+            yPosition += 25;
+            
+            // إضافة صفحة جديدة إذا امتلأت الصفحة
+            if (yPosition > 270) {
+                pdf.addPage();
+                yPosition = 20;
+            }
+        });
+        
+        const fileName = `all-attendance-report-${new Date().toISOString().split('T')[0]}.pdf`;
+        pdf.save(fileName);
+        
+    } catch (error) {
+        alert('خطأ في تصدير الملف: ' + error.message);
+    }
+}
+
 // Utility functions
 function showLoading(show) {
     document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
@@ -1022,7 +942,6 @@ function showStatusMessage(message, type) {
 
 function hideAllScreens() {
     document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('registerForm').style.display = 'none';
     document.getElementById('userDashboard').style.display = 'none';
     document.getElementById('adminDashboard').style.display = 'none';
 }
