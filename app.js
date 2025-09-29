@@ -389,7 +389,7 @@ function getCurrentLocation() {
             },
             {
                 enableHighAccuracy: true,
-                timeout: 10000,
+                timeout: 15000,
                 maximumAge: 300000
             }
         );
@@ -397,6 +397,11 @@ function getCurrentLocation() {
 }
 
 function isWithinOfficeRadius(userLocation) {
+    // للاختبار: السماح بالحضور من أي مكان إذا كان المستخدم مدير
+    if (currentUserProfile && currentUserProfile.role === 'admin') {
+        return true;
+    }
+    
     const distance = calculateDistance(
         userLocation.latitude,
         userLocation.longitude,
@@ -404,6 +409,7 @@ function isWithinOfficeRadius(userLocation) {
         OFFICE_LOCATION.longitude
     );
     
+    console.log('المسافة من المكتب:', distance, 'متر');
     return distance <= OFFICE_LOCATION.radius;
 }
 
@@ -638,22 +644,37 @@ async function editUser(userId) {
 }
 
 async function deleteUser(userId) {
-    if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return;
+    // التأكد من عدم حذف المدير لنفسه
+    if (userId === currentUser.id) {
+        showStatusMessage('لا يمكنك حذف حسابك الخاص', 'error');
+        return;
+    }
+
+    if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟ سيتم حذف جميع سجلات الحضور المرتبطة به.')) return;
 
     showLoading(true);
     
     try {
+        // حذف المستخدم من auth (سيتم حذف البيانات من جدول users تلقائياً بسبب CASCADE)
+        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+        if (authError) throw authError;
+
+        // التأكد من حذف البيانات من جدول users إذا لم يتم حذفها تلقائياً
         const { error } = await supabase
             .from('users')
             .delete()
             .eq('id', userId);
 
-        if (error) throw error;
+        // تجاهل الخطأ إذا كان السجل محذوف مسبقاً
+        if (error && !error.message.includes('No rows found')) {
+            throw error;
+        }
 
         await loadAllUsers();
+        showStatusMessage('تم حذف المستخدم بنجاح', 'success');
         
     } catch (error) {
-        alert('خطأ في حذف المستخدم: ' + error.message);
+        showStatusMessage('خطأ في حذف المستخدم: ' + error.message, 'error');
     }
     
     showLoading(false);
@@ -691,22 +712,37 @@ async function handleSaveUser(e) {
                 .eq('employee_id', employeeId)
                 .single();
 
-            if (existingUser) {
+            if (existingUser && !checkError) {
                 throw new Error('رقم الموظف موجود مسبقاً، يرجى اختيار رقم آخر');
             }
 
-            // Create new user
-            const { data, error } = await supabase.auth.signUp({
+            // التحقق من عدم وجود البريد الإلكتروني مسبقاً
+            const { data: existingEmail, error: emailCheckError } = await supabase
+                .from('users')
+                .select('email')
+                .eq('email', email)
+                .single();
+
+            if (existingEmail && !emailCheckError) {
+                throw new Error('البريد الإلكتروني موجود مسبقاً، يرجى اختيار بريد آخر');
+            }
+
+            // إنشاء مستخدم جديد باستخدام Admin API
+            const { data, error } = await supabase.auth.admin.createUser({
                 email,
-                password
+                password,
+                email_confirm: true,
+                user_metadata: {
+                    full_name: fullName,
+                    employee_id: employeeId,
+                    role: role
+                }
             });
 
             if (error) throw error;
 
             if (data.user) {
-                // انتظار قصير للتأكد من إنشاء المستخدم في auth
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
+                // إضافة بيانات المستخدم في جدول users
                 const { error: profileError } = await supabase
                     .from('users')
                     .insert({
@@ -720,14 +756,6 @@ async function handleSaveUser(e) {
 
                 if (profileError) {
                     console.error('خطأ في إنشاء الملف الشخصي:', profileError);
-                    
-                    // حذف المستخدم من auth إذا فشل إنشاء الملف الشخصي
-                    try {
-                        await supabase.auth.admin.deleteUser(data.user.id);
-                    } catch (deleteError) {
-                        console.error('خطأ في حذف المستخدم من auth:', deleteError);
-                    }
-                    
                     throw new Error('فشل في إنشاء الملف الشخصي: ' + profileError.message);
                 }
             }
@@ -735,15 +763,16 @@ async function handleSaveUser(e) {
 
         hideUserModal();
         await loadAllUsers();
+        showStatusMessage('تم حفظ المستخدم بنجاح!', 'success');
         
     } catch (error) {
         let errorMessage = error.message;
-        if (error.message.includes('For security purposes')) {
-            errorMessage = 'يرجى الانتظار قليلاً قبل إنشاء حساب آخر (إجراء أمني)';
-        } else if (error.message.includes('User already registered')) {
+        if (error.message.includes('User already registered')) {
             errorMessage = 'هذا الإيميل مسجل مسبقاً';
+        } else if (error.message.includes('duplicate key value')) {
+            errorMessage = 'البيانات المدخلة موجودة مسبقاً';
         }
-        alert('خطأ في حفظ المستخدم: ' + errorMessage);
+        showStatusMessage('خطأ في حفظ المستخدم: ' + errorMessage, 'error');
     }
     
     showLoading(false);
