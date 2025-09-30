@@ -1,7 +1,6 @@
 // Supabase Configuration
-// سيتم تحديث هذه القيم تلقائياً عند ربط Supabase
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://kenjxushkrzmwtswxcxi.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlbmp4dXNoa3J6bXd0c3d4Y3hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNDk5NzcsImV4cCI6MjA3NDcyNTk3N30.dPSruivrj1IVheIYTfTw3Ef07JIuw7l3leLx_POwoCM';
+const SUPABASE_URL = 'https://kenjxushkrzmwtswxcxi.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlbmp4dXNoa3J6bXd0c3d4Y3hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNDk5NzcsImV4cCI6MjA3NDcyNTk3N30.dPSruivrj1IVheIYTfTw3Ef07JIuw7l3leLx_POwoCM';
 
 // Office Location Configuration (Riyadh coordinates as default)
 const OFFICE_LOCATION = {
@@ -12,15 +11,20 @@ const OFFICE_LOCATION = {
 };
 
 // Initialize Supabase client
-const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false
-    }
-}) : null;
+let supabase = null;
 
-// التحقق من تحميل Supabase بشكل صحيح
-if (!supabase) {
-    console.error('فشل في تحميل مكتبة Supabase');
-}
+// انتظار تحميل مكتبة Supabase
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.supabase && window.supabase.createClient) {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                autoRefreshToken: true,
+                persistSession: true,
+                detectSessionInUrl: false
+            }
+        });
+        console.log('تم تحميل Supabase بنجاح');
+    } else {
+        console.error('فشل في تحميل مكتبة Supabase');
+    }
+});
