@@ -11,6 +11,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize application
 async function initializeApp() {
+    // انتظار تحميل Supabase
+    if (!supabase) {
+        console.error('Supabase غير محمل');
+        showError('loginError', 'خطأ في تحميل النظام. يرجى إعادة تحميل الصفحة.');
+        showLoading(false);
+        return;
+    }
+    
     showLoading(true);
     
     try {
@@ -80,9 +88,9 @@ function setupEventListeners() {
 async function handleLogin(e) {
     e.preventDefault();
     
-    // التحقق من تحميل Supabase
+    // التأكد من تحميل Supabase
     if (!supabase) {
-        showError('loginError', 'خطأ في تحميل النظام. يرجى إعادة تحميل الصفحة.');
+        showError('loginError', 'النظام غير جاهز. يرجى إعادة تحميل الصفحة.');
         return;
     }
     
