@@ -7,15 +7,20 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
 const OFFICE_LOCATION = {
     latitude: 24.429328,
     longitude: 39.653926,
-    radius: 100, // meters - نطاق أصغر للدقة
+    radius: 50, // meters - نطاق أصغر للدقة
     name: 'المكتب الرئيسي'
 };
 
 // Initialize Supabase client
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false
     }
-});
+}) : null;
+
+// التحقق من تحميل Supabase بشكل صحيح
+if (!supabase) {
+    console.error('فشل في تحميل مكتبة Supabase');
+}
