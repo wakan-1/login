@@ -79,6 +79,13 @@ function setupEventListeners() {
 // Authentication functions
 async function handleLogin(e) {
     e.preventDefault();
+    
+    // التحقق من تحميل Supabase
+    if (!supabase) {
+        showError('loginError', 'خطأ في تحميل النظام. يرجى إعادة تحميل الصفحة.');
+        return;
+    }
+    
     showLoading(true);
 
     const email = document.getElementById('loginEmail').value;
