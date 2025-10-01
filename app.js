@@ -2,11 +2,13 @@
 let currentUser = null;
 let supabaseClient = null;
 
-// Initialize Supabase when DOM is loaded
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('تحميل التطبيق...');
     
     // Wait for Supabase to load
+    await waitForSupabase();
+    
     if (window.supabase && window.supabase.createClient) {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
@@ -30,6 +32,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         showError('فشل في تحميل النظام. يرجى إعادة تحميل الصفحة.');
     }
 });
+
+// Wait for Supabase to load
+function waitForSupabase() {
+    return new Promise((resolve) => {
+        if (window.supabase) {
+            resolve();
+        } else {
+            setTimeout(() => waitForSupabase().then(resolve), 100);
+        }
+    });
+}
 
 // Initialize all event listeners
 function initializeEventListeners() {
@@ -151,10 +164,10 @@ async function handleUserSession(user) {
         if (error) {
             console.error('خطأ في جلب بيانات المستخدم:', error);
             
-            // If user doesn't exist in users table, create them
+            // If user doesn't exist in users table, show error
             if (error.code === 'PGRST116') {
-                console.log('المستخدم غير موجود في جدول users، سيتم إنشاؤه...');
-                await createUserRecord(user);
+                showError('المستخدم غير موجود في النظام. يرجى التواصل مع الإدارة.');
+                await handleLogout();
                 return;
             }
             
@@ -178,32 +191,6 @@ async function handleUserSession(user) {
         console.error('خطأ في معالجة جلسة المستخدم:', error);
         showError('خطأ في تحميل بيانات المستخدم');
         await handleLogout();
-    }
-}
-
-// Create user record if doesn't exist
-async function createUserRecord(user) {
-    try {
-        const { data, error } = await supabaseClient
-            .from('users')
-            .insert([{
-                id: user.id,
-                email: user.email,
-                full_name: user.user_metadata?.full_name || user.email.split('@')[0],
-                employee_id: 'EMP' + Date.now(),
-                role: 'user'
-            }])
-            .select()
-            .single();
-        
-        if (error) throw error;
-        
-        currentUser = data;
-        showUserDashboard();
-        
-    } catch (error) {
-        console.error('خطأ في إنشاء سجل المستخدم:', error);
-        showError('خطأ في إنشاء حساب المستخدم');
     }
 }
 
@@ -610,6 +597,23 @@ async function handleUserSubmit(e) {
             if (userError) throw userError;
             
             showSuccess('تم إنشاء المستخدم بنجاح');
+        } else if (mode === 'edit') {
+            const userId = document.getElementById('userModal').dataset.userId;
+            
+            // Update user in users table
+            const { error: userError } = await supabaseClient
+                .from('users')
+                .update({
+                    email: email,
+                    full_name: fullName,
+                    employee_id: employeeId,
+                    role: role
+                })
+                .eq('id', userId);
+            
+            if (userError) throw userError;
+            
+            showSuccess('تم تحديث المستخدم بنجاح');
         }
         
         hideUserModal();
@@ -784,7 +788,7 @@ async function exportAttendanceToPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
-        // Add Arabic font support (you might need to add a proper Arabic font)
+        // Add title
         doc.setFont('helvetica');
         doc.setFontSize(16);
         doc.text('Attendance Report', 20, 20);
