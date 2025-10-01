@@ -165,41 +165,9 @@ async function handleUserSession(user) {
         if (error) {
             console.error('خطأ في جلب بيانات المستخدم:', error);
             
-            // If user doesn't exist in users table, create admin user if it's admin email
-            if (error.code === 'PGRST116') {
-                if (user.email === 'admin@company.com') {
-                    console.log('إنشاء المستخدم المدير...');
-                    // Create admin user
-                    const { data: newUser, error: createError } = await supabaseClient
-                        .from('users')
-                        .insert([{
-                            id: user.id,
-                            email: user.email,
-                            full_name: 'مدير النظام',
-                            employee_id: 'ADMIN001',
-                            role: 'admin',
-                            is_active: true
-                        }])
-                        .select()
-                        .single();
-                    
-                    if (createError) {
-                        console.error('خطأ في إنشاء المستخدم المدير:', createError);
-                        showError('خطأ في إنشاء المستخدم المدير');
-                        await handleLogout();
-                        return;
-                    }
-                    
-                    userData = newUser;
-                    console.log('تم إنشاء المستخدم المدير بنجاح');
-                } else {
-                    showError('المستخدم غير موجود في النظام. يرجى التواصل مع الإدارة.');
-                    await handleLogout();
-                    return;
-                }
-            } else {
-                throw error;
-            }
+            showError('المستخدم غير موجود في النظام. يرجى التواصل مع الإدارة.');
+            await handleLogout();
+            return;
         }
         
         currentUser = userData;
