@@ -13,7 +13,7 @@ const OFFICE_LOCATION = {
 // Initialize Supabase client
 let supabase = null;
 
-// انتظار تحميل مكتبة Supabase
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     if (window.supabase && window.supabase.createClient) {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
