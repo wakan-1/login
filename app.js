@@ -155,6 +155,38 @@ async function handleUserSession(user) {
         console.log('معالجة جلسة المستخدم:', user.id);
         console.log('البريد الإلكتروني:', user.email);
         
+        // إذا كان المستخدم هو المدير، أنشئه مباشرة
+        if (user.email === 'admin@company.com') {
+            console.log('محاولة إنشاء/تحديث المستخدم المدير...');
+            
+            const { data: adminUser, error: upsertError } = await supabaseClient
+                .from('users')
+                .upsert({
+                    id: user.id,
+                    email: user.email,
+                    full_name: 'مدير النظام',
+                    employee_id: 'ADMIN001',
+                    role: 'admin',
+                    is_active: true
+                }, {
+                    onConflict: 'id'
+                })
+                .select()
+                .single();
+            
+            if (upsertError) {
+                console.error('خطأ في إنشاء المستخدم المدير:', upsertError);
+            } else {
+                console.log('تم إنشاء/تحديث المستخدم المدير بنجاح:', adminUser);
+                currentUser = adminUser;
+                
+                // Hide login form
+                document.getElementById('loginForm').style.display = 'none';
+                showAdminDashboard();
+                return;
+            }
+        }
+        
         // Get user data from users table
         const { data: userData, error } = await supabaseClient
             .from('users')
@@ -165,13 +197,41 @@ async function handleUserSession(user) {
         if (error) {
             console.error('خطأ في جلب بيانات المستخدم:', error);
             
-            showError('المستخدم غير موجود في النظام. يرجى التواصل مع الإدارة.');
-            await handleLogout();
-            return;
+            // محاولة إنشاء المستخدم إذا لم يكن موجود
+            if (error.code === 'PGRST116') { // No rows returned
+                console.log('المستخدم غير موجود، محاولة إنشاءه...');
+                
+                const { data: newUser, error: insertError } = await supabaseClient
+                    .from('users')
+                    .insert([{
+                        id: user.id,
+                        email: user.email,
+                        full_name: user.email.split('@')[0],
+                        employee_id: 'EMP' + Date.now().toString().slice(-6),
+                        role: user.email === 'admin@company.com' ? 'admin' : 'user',
+                        is_active: true
+                    }])
+                    .select()
+                    .single();
+                
+                if (insertError) {
+                    console.error('خطأ في إنشاء المستخدم:', insertError);
+                    showError('خطأ في إنشاء المستخدم في النظام');
+                    await handleLogout();
+                    return;
+                }
+                
+                currentUser = newUser;
+                console.log('تم إنشاء المستخدم بنجاح:', currentUser);
+            } else {
+                showError('خطأ في الوصول لبيانات المستخدم');
+                await handleLogout();
+                return;
+            }
+        } else {
+            currentUser = userData;
+            console.log('بيانات المستخدم:', currentUser);
         }
-        
-        currentUser = userData;
-        console.log('بيانات المستخدم:', currentUser);
         
         // Hide login form
         document.getElementById('loginForm').style.display = 'none';
@@ -185,7 +245,7 @@ async function handleUserSession(user) {
         
     } catch (error) {
         console.error('خطأ في معالجة جلسة المستخدم:', error);
-        showError('خطأ في تحميل بيانات المستخدم');
+        showError('خطأ في معالجة بيانات المستخدم');
         await handleLogout();
     }
 }
