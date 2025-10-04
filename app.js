@@ -155,39 +155,8 @@ async function handleUserSession(user) {
         console.log('معالجة جلسة المستخدم:', user.id);
         console.log('البريد الإلكتروني:', user.email);
         
-        // إذا كان المستخدم هو المدير، أنشئه مباشرة
-        if (user.email === 'admin@company.com') {
-            console.log('محاولة إنشاء/تحديث المستخدم المدير...');
-            
-            const { data: adminUser, error: upsertError } = await supabaseClient
-                .from('users')
-                .upsert({
-                    id: user.id,
-                    email: user.email,
-                    full_name: 'مدير النظام',
-                    employee_id: 'ADMIN001',
-                    role: 'admin',
-                    is_active: true
-                }, {
-                    onConflict: 'id'
-                })
-                .select()
-                .single();
-            
-            if (upsertError) {
-                console.error('خطأ في إنشاء المستخدم المدير:', upsertError);
-            } else {
-                console.log('تم إنشاء/تحديث المستخدم المدير بنجاح:', adminUser);
-                currentUser = adminUser;
-                
-                // Hide login form
-                document.getElementById('loginForm').style.display = 'none';
-                showAdminDashboard();
-                return;
-            }
-        }
-        
         // Get user data from users table
+        console.log('جلب بيانات المستخدم من قاعدة البيانات...');
         const { data: userData, error } = await supabaseClient
             .from('users')
             .select('*')
@@ -197,37 +166,9 @@ async function handleUserSession(user) {
         if (error) {
             console.error('خطأ في جلب بيانات المستخدم:', error);
             
-            // محاولة إنشاء المستخدم إذا لم يكن موجود
-            if (error.code === 'PGRST116') { // No rows returned
-                console.log('المستخدم غير موجود، محاولة إنشاءه...');
-                
-                const { data: newUser, error: insertError } = await supabaseClient
-                    .from('users')
-                    .insert([{
-                        id: user.id,
-                        email: user.email,
-                        full_name: user.email.split('@')[0],
-                        employee_id: 'EMP' + Date.now().toString().slice(-6),
-                        role: user.email === 'admin@company.com' ? 'admin' : 'user',
-                        is_active: true
-                    }])
-                    .select()
-                    .single();
-                
-                if (insertError) {
-                    console.error('خطأ في إنشاء المستخدم:', insertError);
-                    showError('خطأ في إنشاء المستخدم في النظام');
-                    await handleLogout();
-                    return;
-                }
-                
-                currentUser = newUser;
-                console.log('تم إنشاء المستخدم بنجاح:', currentUser);
-            } else {
-                showError('خطأ في الوصول لبيانات المستخدم');
-                await handleLogout();
-                return;
-            }
+            showError('المستخدم غير موجود في النظام. يرجى التواصل مع الإدارة.');
+            await handleLogout();
+            return;
         } else {
             currentUser = userData;
             console.log('بيانات المستخدم:', currentUser);
@@ -630,44 +571,47 @@ async function handleUserSubmit(e) {
         showLoading(true);
         
         if (mode === 'add') {
-            // Create user in auth
-            const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
-                email: email,
-                password: password,
-                email_confirm: true
-            });
-            
-            if (authError) throw authError;
-            
-            // Create user in users table
-            const { error: userError } = await supabaseClient
-                .from('users')
-                .insert([{
-                    id: authData.user.id,
+            // Call edge function to create user
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
                     email: email,
+                    password: password,
                     full_name: fullName,
                     employee_id: employeeId,
                     role: role
-                }]);
+                })
+            });
             
-            if (userError) throw userError;
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
             
             showSuccess('تم إنشاء المستخدم بنجاح');
         } else if (mode === 'edit') {
             const userId = document.getElementById('userModal').dataset.userId;
             
-            // Update user in users table
-            const { error: userError } = await supabaseClient
-                .from('users')
-                .update({
+            // Call edge function to update user
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/update-user`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: userId,
                     email: email,
                     full_name: fullName,
                     employee_id: employeeId,
                     role: role
                 })
-                .eq('id', userId);
+            });
             
-            if (userError) throw userError;
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
             
             showSuccess('تم تحديث المستخدم بنجاح');
         }
