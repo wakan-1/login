@@ -118,6 +118,7 @@
                                 <th>الحضور</th>
                                 <th>الانصراف</th>
                                 <th>إجمالي الساعات</th>
+                                <th>الموقع</th>
                             </tr>
                         </thead>
                         <tbody id="attendanceTableBody">
@@ -147,6 +148,10 @@
                 <button class="tab-btn active" data-tab="users">
                     <i class="fas fa-users"></i>
                     إدارة المستخدمين
+                </button>
+                <button class="tab-btn" data-tab="locations">
+                    <i class="fas fa-map-marker-alt"></i>
+                    إدارة المواقع
                 </button>
                 <button class="tab-btn" data-tab="attendance">
                     <i class="fas fa-calendar"></i>
@@ -194,6 +199,42 @@
                 </div>
             </div>
 
+            <!-- Locations Tab -->
+            <div id="locationsTab" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="search-container">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="locationSearch" placeholder="البحث عن موقع...">
+                        </div>
+                        <div class="header-actions">
+                            <button id="addLocationBtn" class="btn-primary">
+                                <i class="fas fa-map-marker-alt"></i>
+                                إضافة موقع
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table id="locationsTable">
+                            <thead>
+                                <tr>
+                                    <th>اسم الموقع</th>
+                                    <th>خط العرض</th>
+                                    <th>خط الطول</th>
+                                    <th>النطاق (متر)</th>
+                                    <th>الحالة</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="locationsTableBody">
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Attendance Tab -->
             <div id="attendanceTab" class="tab-content">
                 <div class="card">
@@ -224,6 +265,7 @@
                                     <th>الحضور</th>
                                     <th>الانصراف</th>
                                     <th>إجمالي الساعات</th>
+                                    <th>الموقع</th>
                                 </tr>
                             </thead>
                             <tbody id="adminAttendanceTableBody">
@@ -266,8 +308,17 @@
                     <label>النوع</label>
                     <select id="modalRole">
                         <option value="user">موظف</option>
+                        <option value="field_user">مندوب</option>
+                        <option value="field_user">مندوب</option>
                         <option value="admin">مدير</option>
                     </select>
+                </div>
+                
+                <div class="form-group" id="userLocationsGroup" style="display: none;">
+                    <label>المواقع المخصصة</label>
+                    <div id="locationCheckboxes" class="checkbox-group">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
                 </div>
                 
                 <div class="form-group" id="passwordGroup">
@@ -280,6 +331,56 @@
                         حفظ
                     </button>
                     <button type="button" class="btn-secondary" id="cancelModal">
+                        إلغاء
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Location Modal -->
+    <div id="locationModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="locationModalTitle">إضافة موقع جديد</h2>
+                <button class="modal-close" id="closeLocationModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="locationModalForm">
+                <div class="form-group">
+                    <label>اسم الموقع/العميل</label>
+                    <input type="text" id="modalLocationName" required placeholder="مثال: شركة الرياض للتجارة">
+                </div>
+                
+                <div class="form-group">
+                    <label>خط العرض (Latitude)</label>
+                    <input type="number" id="modalLatitude" step="any" required placeholder="24.7136">
+                </div>
+                
+                <div class="form-group">
+                    <label>خط الطول (Longitude)</label>
+                    <input type="number" id="modalLongitude" step="any" required placeholder="46.6753">
+                </div>
+                
+                <div class="form-group">
+                    <label>نطاق التسجيل (متر)</label>
+                    <input type="number" id="modalRadius" value="100" min="10" max="1000" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="modalLocationActive" checked>
+                        الموقع نشط
+                    </label>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary" id="saveLocationBtn">
+                        حفظ
+                    </button>
+                    <button type="button" class="btn-secondary" id="cancelLocationModal">
                         إلغاء
                     </button>
                 </div>
