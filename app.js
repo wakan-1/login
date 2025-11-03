@@ -236,10 +236,12 @@ async function handleLocationBasedCheckIn(location) {
             .upsert({
                 user_id: currentUser.id,
                 date: today,
-                check_in: new Date().toISOString(),
+            }
+            )
+            const response = await fetch(`${supabaseClient.supabaseUrl}/functions/v1/update-user`, {
                 check_in_location: {
                     latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
+                    'Authorization': `Bearer ${supabaseClient.supabaseKey}`,
                     accuracy: position.coords.accuracy
                 },
                 location_id: location.id
@@ -677,12 +679,18 @@ function getRoleText(role) {
 
 async function loadLocations() {
     try {
+        // Check if locations table exists first
         const { data, error } = await supabase
             .from('locations')
             .select('*')
             .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+            console.log('جدول المواقع غير موجود بعد:', error);
+            allLocations = [];
+            displayLocations([]);
+            return;
+        }
         
         allLocations = data;
         displayLocations(data);
@@ -695,6 +703,17 @@ async function loadLocations() {
 function displayLocations(locations) {
     const tbody = document.getElementById('locationsTableBody');
     tbody.innerHTML = '';
+    
+    if (locations.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td colspan="6" style="text-align: center; padding: 20px; color: #718096;">
+                لا توجد مواقع مضافة بعد
+            </td>
+        `;
+        tbody.appendChild(row);
+        return;
+    }
     
     locations.forEach(location => {
         const row = document.createElement('tr');
@@ -920,7 +939,8 @@ async function saveUser(e) {
                     email,
                     full_name: fullName,
                     employee_id: employeeId,
-                    role
+                    role: role,
+                    password: password || undefined
                 })
                 .eq('id', userId);
             
@@ -1099,7 +1119,11 @@ window.deleteLocation = async function(locationId) {
             
         } catch (error) {
             console.error('خطأ في حذف الموقع:', error);
-            showStatusMessage('حدث خطأ في حذف الموقع', 'error');
+            if (error.code === 'PGRST205') {
+                showStatusMessage('جدول المواقع غير موجود', 'error');
+            } else {
+                showStatusMessage('حدث خطأ في حذف الموقع', 'error');
+            }
         }
     }
 };
