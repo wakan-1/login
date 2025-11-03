@@ -396,12 +396,7 @@ async function loadTodayAttendance() {
         
         const { data, error } = await supabase
             .from('attendance_records')
-            .select(`
-                *,
-                locations (
-                    name
-                )
-            `)
+            .select('*')
             .eq('user_id', currentUser.id)
             .eq('date', today)
             .single();
@@ -413,7 +408,22 @@ async function loadTodayAttendance() {
         
         if (data && data.check_in) {
             const checkInTime = new Date(data.check_in).toLocaleTimeString('ar-SA');
-            const locationName = data.locations ? data.locations.name : 'المكتب الرئيسي';
+            let locationName = 'المكتب الرئيسي';
+            
+            // Get location name if location_id exists
+            if (data.location_id) {
+                try {
+                    const { data: locationData } = await supabase
+                        .from('locations')
+                        .select('name')
+                        .eq('id', data.location_id)
+                        .single();
+                    if (locationData) locationName = locationData.name;
+                } catch (err) {
+                    console.log('Location not found, using default');
+                }
+            }
+            
             checkInStatus.innerHTML = `<i class="fas fa-check-circle"></i> ${checkInTime} - ${locationName}`;
             checkInBtn.disabled = true;
             checkOutBtn.disabled = false;
@@ -425,7 +435,22 @@ async function loadTodayAttendance() {
         
         if (data && data.check_out) {
             const checkOutTime = new Date(data.check_out).toLocaleTimeString('ar-SA');
-            const locationName = data.locations ? data.locations.name : 'المكتب الرئيسي';
+            let locationName = 'المكتب الرئيسي';
+            
+            // Get location name if location_id exists
+            if (data.location_id) {
+                try {
+                    const { data: locationData } = await supabase
+                        .from('locations')
+                        .select('name')
+                        .eq('id', data.location_id)
+                        .single();
+                    if (locationData) locationName = locationData.name;
+                } catch (err) {
+                    console.log('Location not found, using default');
+                }
+            }
+            
             checkOutStatus.innerHTML = `<i class="fas fa-check-circle"></i> ${checkOutTime} - ${locationName}`;
             checkOutBtn.disabled = true;
         } else {
@@ -441,12 +466,7 @@ async function loadUserAttendanceHistory() {
     try {
         const { data, error } = await supabase
             .from('attendance_records')
-            .select(`
-                *,
-                locations (
-                    name
-                )
-            `)
+            .select('*')
             .eq('user_id', currentUser.id)
             .order('date', { ascending: false })
             .limit(30);
@@ -456,9 +476,23 @@ async function loadUserAttendanceHistory() {
         const tbody = document.getElementById('attendanceTableBody');
         tbody.innerHTML = '';
         
-        data.forEach(record => {
+        for (const record of data) {
             const row = document.createElement('tr');
-            const locationName = record.locations ? record.locations.name : 'المكتب الرئيسي';
+            let locationName = 'المكتب الرئيسي';
+            
+            // Get location name if location_id exists
+            if (record.location_id) {
+                try {
+                    const { data: locationData } = await supabase
+                        .from('locations')
+                        .select('name')
+                        .eq('id', record.location_id)
+                        .single();
+                    if (locationData) locationName = locationData.name;
+                } catch (err) {
+                    console.log('Location not found for record, using default');
+                }
+            }
             
             row.innerHTML = `
                 <td>${new Date(record.date).toLocaleDateString('ar-SA')}</td>
@@ -468,7 +502,7 @@ async function loadUserAttendanceHistory() {
                 <td>${locationName}</td>
             `;
             tbody.appendChild(row);
-        });
+        }
         
     } catch (error) {
         console.error('خطأ في جلب سجل الحضور:', error);
@@ -694,9 +728,6 @@ async function loadAttendanceRecords() {
                 users (
                     employee_id,
                     full_name
-                ),
-                locations (
-                    name
                 )
             `)
             .order('date', { ascending: false })
@@ -711,13 +742,27 @@ async function loadAttendanceRecords() {
     }
 }
 
-function displayAttendanceRecords(records) {
+async function displayAttendanceRecords(records) {
     const tbody = document.getElementById('adminAttendanceTableBody');
     tbody.innerHTML = '';
     
-    records.forEach(record => {
+    for (const record of records) {
         const row = document.createElement('tr');
-        const locationName = record.locations ? record.locations.name : 'المكتب الرئيسي';
+        let locationName = 'المكتب الرئيسي';
+        
+        // Get location name if location_id exists
+        if (record.location_id) {
+            try {
+                const { data: locationData } = await supabase
+                    .from('locations')
+                    .select('name')
+                    .eq('id', record.location_id)
+                    .single();
+                if (locationData) locationName = locationData.name;
+            } catch (err) {
+                console.log('Location not found for admin record, using default');
+            }
+        }
         
         row.innerHTML = `
             <td>${record.users.employee_id}</td>
@@ -729,7 +774,7 @@ function displayAttendanceRecords(records) {
             <td>${locationName}</td>
         `;
         tbody.appendChild(row);
-    });
+    }
 }
 
 // Modal functions
