@@ -723,19 +723,13 @@ async function loadAttendanceRecords() {
     try {
         const { data, error } = await supabase
             .from('attendance_records')
-            .select(`
-                *,
-                users (
-                    employee_id,
-                    full_name
-                )
-            `)
+            .select('*, users(employee_id, full_name)')
             .order('date', { ascending: false })
             .limit(100);
         
         if (error) throw error;
         
-        displayAttendanceRecords(data);
+        await displayAttendanceRecords(data);
         
     } catch (error) {
         console.error('خطأ في جلب سجلات الحضور:', error);
