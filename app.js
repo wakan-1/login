@@ -686,7 +686,7 @@ async function loadLocations() {
             .order('created_at', { ascending: false });
         
         if (error) {
-            console.log('جدول المواقع غير موجود بعد:', error);
+            console.info('نظام المواقع لم يتم تفعيله بعد - يحتاج تطبيق migration');
             allLocations = [];
             displayLocations([]);
             return;
