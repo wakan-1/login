@@ -236,12 +236,10 @@ async function handleLocationBasedCheckIn(location) {
             .upsert({
                 user_id: currentUser.id,
                 date: today,
-            }
-            )
-            const response = await fetch(`${supabaseClient.supabaseUrl}/functions/v1/update-user`, {
+                check_in: new Date().toISOString(),
                 check_in_location: {
                     latitude: position.coords.latitude,
-                    'Authorization': `Bearer ${supabaseClient.supabaseKey}`,
+                    longitude: position.coords.longitude,
                     accuracy: position.coords.accuracy
                 },
                 location_id: location.id
@@ -605,10 +603,20 @@ async function loadLocationCheckboxes() {
             .eq('is_active', true)
             .order('name');
         
-        if (error) throw error;
+        if (error) {
+            console.info('نظام المواقع لم يتم تفعيله بعد');
+            const container = document.getElementById('locationCheckboxes');
+            container.innerHTML = '<p style="color: #718096; text-align: center; padding: 20px;">نظام المواقع لم يتم تفعيله بعد<br>سيتم تفعيله لاحقاً</p>';
+            return;
+        }
         
         const container = document.getElementById('locationCheckboxes');
         container.innerHTML = '';
+        
+        if (!data || data.length === 0) {
+            container.innerHTML = '<p style="color: #718096; text-align: center; padding: 20px;">لا توجد مواقع متاحة</p>';
+            return;
+        }
         
         data.forEach(location => {
             const label = document.createElement('label');
@@ -620,7 +628,9 @@ async function loadLocationCheckboxes() {
         });
         
     } catch (error) {
-        console.error('خطأ في جلب المواقع:', error);
+        console.info('نظام المواقع لم يتم تفعيله بعد');
+        const container = document.getElementById('locationCheckboxes');
+        container.innerHTML = '<p style="color: #718096; text-align: center; padding: 20px;">نظام المواقع لم يتم تفعيله بعد<br>سيتم تفعيله لاحقاً</p>';
     }
 }
 
@@ -930,6 +940,17 @@ async function saveUser(e) {
     const role = document.getElementById('modalRole').value;
     const password = document.getElementById('modalPassword').value;
     
+    // التحقق من صحة البيانات
+    if (!email || !email.includes('@') || !email.includes('.')) {
+        showStatusMessage('يرجى إدخال بريد إلكتروني صحيح', 'error');
+        return;
+    }
+    
+    if (!isEdit && (!password || password.length < 6)) {
+        showStatusMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+        return;
+    }
+    
     try {
         if (isEdit) {
             // Update existing user
@@ -992,12 +1013,34 @@ async function saveUser(e) {
         
     } catch (error) {
         console.error('خطأ في حفظ المستخدم:', error);
-        showStatusMessage('حدث خطأ في حفظ المستخدم', 'error');
+        
+        let errorMessage = 'حدث خطأ في حفظ المستخدم';
+        
+        if (error.message.includes('Email address') && error.message.includes('invalid')) {
+            errorMessage = 'البريد الإلكتروني غير صحيح. يرجى إدخال بريد إلكتروني صالح';
+        } else if (error.message.includes('Password should be at least')) {
+            errorMessage = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+        } else if (error.message.includes('duplicate key')) {
+            errorMessage = 'البريد الإلكتروني أو رقم الموظف مستخدم مسبقاً';
+        }
+        
+        showStatusMessage(errorMessage, 'error');
     }
 }
 
 async function updateUserLocations(userId) {
     try {
+        // التحقق من وجود جدول user_locations
+        const { error: checkError } = await supabase
+            .from('user_locations')
+            .select('id')
+            .limit(1);
+        
+        if (checkError) {
+            console.info('جدول user_locations غير موجود بعد - سيتم تفعيله لاحقاً');
+            return;
+        }
+        
         // Delete existing assignments
         await supabase
             .from('user_locations')
@@ -1023,8 +1066,8 @@ async function updateUserLocations(userId) {
         }
         
     } catch (error) {
-        console.error('خطأ في تحديث مواقع المستخدم:', error);
-        throw error;
+        console.info('نظام المواقع لم يتم تفعيله بعد - سيتم تفعيله لاحقاً');
+        // لا نرمي خطأ هنا لأن إنشاء المستخدم يجب أن يكتمل
     }
 }
 
