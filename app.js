@@ -87,18 +87,38 @@ async function handleSuccessfulLogin(session) {
             .from('users')
             .select('*')
             .eq('id', session.user.id)
-            .single();
-        
+            .maybeSingle();
+
         if (error) throw error;
-        
-        currentUser = userData;
-        currentUserRole = userData.role;
-        
+
+        if (!userData) {
+            // Create user profile if it doesn't exist
+            const { data: newUser, error: createError } = await supabase
+                .from('users')
+                .insert({
+                    id: session.user.id,
+                    email: session.user.email,
+                    full_name: session.user.user_metadata?.full_name || 'مستخدم جديد',
+                    employee_id: session.user.user_metadata?.employee_id || 'EMP-' + session.user.id.slice(0, 8),
+                    role: session.user.app_metadata?.role || 'user',
+                    is_active: true
+                })
+                .select()
+                .single();
+
+            if (createError) throw createError;
+            currentUser = newUser;
+        } else {
+            currentUser = userData;
+        }
+
+        currentUserRole = currentUser.role;
+
         // Hide login form
         document.getElementById('loginForm').style.display = 'none';
-        
+
         // Show appropriate dashboard
-        if (userData.role === 'admin') {
+        if (currentUser.role === 'admin') {
             await showAdminDashboard();
         } else {
             await showUserDashboard();
