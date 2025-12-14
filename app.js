@@ -264,7 +264,7 @@ async function handleLocationBasedCheckIn(location) {
                 },
                 location_id: location.id
             }, {
-                onConflict: 'user_id,date'
+                onConflict: 'user_id,date,location_id'
             });
         
         if (error) throw error;
