@@ -413,70 +413,138 @@ async function handleCheckOut() {
 async function loadTodayAttendance() {
     try {
         const today = new Date().toISOString().split('T')[0];
-        
-        const { data, error } = await supabase
+
+        const { data: records, error } = await supabase
             .from('attendance_records')
             .select('*')
             .eq('user_id', currentUser.id)
-            .eq('date', today)
-            .single();
-        
+            .eq('date', today);
+
         const checkInStatus = document.getElementById('checkInStatus');
         const checkOutStatus = document.getElementById('checkOutStatus');
         const checkInBtn = document.getElementById('checkInBtn');
         const checkOutBtn = document.getElementById('checkOutBtn');
-        
-        if (data && data.check_in) {
-            const checkInTime = new Date(data.check_in).toLocaleTimeString('ar-SA');
-            let locationName = 'المكتب الرئيسي';
-            
-            // Get location name if location_id exists
-            if (data.location_id) {
-                try {
-                    const { data: locationData } = await supabase
-                        .from('locations')
-                        .select('name')
-                        .eq('id', data.location_id)
-                        .single();
-                    if (locationData) locationName = locationData.name;
-                } catch (err) {
-                    console.log('Location not found, using default');
+
+        if (error) throw error;
+
+        // For field users: show summary of all locations checked in today
+        if (currentUser.role === 'field_user' && records && records.length > 0) {
+            const checkedInLocations = records.filter(r => r.check_in);
+            const checkedOutLocations = records.filter(r => r.check_out);
+
+            if (checkedInLocations.length > 0) {
+                let locationNames = [];
+                for (const record of checkedInLocations) {
+                    let locationName = 'المكتب الرئيسي';
+                    if (record.location_id) {
+                        try {
+                            const { data: locationData } = await supabase
+                                .from('locations')
+                                .select('name')
+                                .eq('id', record.location_id)
+                                .single();
+                            if (locationData) locationName = locationData.name;
+                        } catch (err) {
+                            console.log('Location not found, using default');
+                        }
+                    }
+                    locationNames.push(locationName);
                 }
+
+                const checkInTime = new Date(checkedInLocations[0].check_in).toLocaleTimeString('ar-SA');
+                checkInStatus.innerHTML = `<i class="fas fa-check-circle"></i> ${checkInTime} - ${locationNames.join(', ')}`;
+                checkInBtn.disabled = false;
+            } else {
+                checkInStatus.innerHTML = '<i class="fas fa-times-circle"></i> لم يسجل بعد';
+                checkInBtn.disabled = false;
             }
-            
-            checkInStatus.innerHTML = `<i class="fas fa-check-circle"></i> ${checkInTime} - ${locationName}`;
-            checkInBtn.disabled = true;
+
+            if (checkedOutLocations.length > 0) {
+                let locationNames = [];
+                for (const record of checkedOutLocations) {
+                    let locationName = 'المكتب الرئيسي';
+                    if (record.location_id) {
+                        try {
+                            const { data: locationData } = await supabase
+                                .from('locations')
+                                .select('name')
+                                .eq('id', record.location_id)
+                                .single();
+                            if (locationData) locationName = locationData.name;
+                        } catch (err) {
+                            console.log('Location not found, using default');
+                        }
+                    }
+                    locationNames.push(locationName);
+                }
+
+                const checkOutTime = new Date(checkedOutLocations[0].check_out).toLocaleTimeString('ar-SA');
+                checkOutStatus.innerHTML = `<i class="fas fa-check-circle"></i> ${checkOutTime} - ${locationNames.join(', ')}`;
+            } else {
+                checkOutStatus.innerHTML = '<i class="fas fa-times-circle"></i> لم يسجل بعد';
+            }
+
             checkOutBtn.disabled = false;
+        }
+        // For regular users: show single location (office)
+        else if (records && records.length > 0) {
+            const data = records[0];
+
+            if (data && data.check_in) {
+                const checkInTime = new Date(data.check_in).toLocaleTimeString('ar-SA');
+                let locationName = 'المكتب الرئيسي';
+
+                if (data.location_id) {
+                    try {
+                        const { data: locationData } = await supabase
+                            .from('locations')
+                            .select('name')
+                            .eq('id', data.location_id)
+                            .single();
+                        if (locationData) locationName = locationData.name;
+                    } catch (err) {
+                        console.log('Location not found, using default');
+                    }
+                }
+
+                checkInStatus.innerHTML = `<i class="fas fa-check-circle"></i> ${checkInTime} - ${locationName}`;
+                checkInBtn.disabled = true;
+                checkOutBtn.disabled = false;
+            } else {
+                checkInStatus.innerHTML = '<i class="fas fa-times-circle"></i> لم يسجل بعد';
+                checkInBtn.disabled = false;
+                checkOutBtn.disabled = true;
+            }
+
+            if (data && data.check_out) {
+                const checkOutTime = new Date(data.check_out).toLocaleTimeString('ar-SA');
+                let locationName = 'المكتب الرئيسي';
+
+                if (data.location_id) {
+                    try {
+                        const { data: locationData } = await supabase
+                            .from('locations')
+                            .select('name')
+                            .eq('id', data.location_id)
+                            .single();
+                        if (locationData) locationName = locationData.name;
+                    } catch (err) {
+                        console.log('Location not found, using default');
+                    }
+                }
+
+                checkOutStatus.innerHTML = `<i class="fas fa-check-circle"></i> ${checkOutTime} - ${locationName}`;
+                checkOutBtn.disabled = true;
+            } else {
+                checkOutStatus.innerHTML = '<i class="fas fa-times-circle"></i> لم يسجل بعد';
+            }
         } else {
             checkInStatus.innerHTML = '<i class="fas fa-times-circle"></i> لم يسجل بعد';
+            checkOutStatus.innerHTML = '<i class="fas fa-times-circle"></i> لم يسجل بعد';
             checkInBtn.disabled = false;
             checkOutBtn.disabled = true;
         }
-        
-        if (data && data.check_out) {
-            const checkOutTime = new Date(data.check_out).toLocaleTimeString('ar-SA');
-            let locationName = 'المكتب الرئيسي';
-            
-            // Get location name if location_id exists
-            if (data.location_id) {
-                try {
-                    const { data: locationData } = await supabase
-                        .from('locations')
-                        .select('name')
-                        .eq('id', data.location_id)
-                        .single();
-                    if (locationData) locationName = locationData.name;
-                } catch (err) {
-                    console.log('Location not found, using default');
-                }
-            }
-            
-            checkOutStatus.innerHTML = `<i class="fas fa-check-circle"></i> ${checkOutTime} - ${locationName}`;
-            checkOutBtn.disabled = true;
-        } else {
-            checkOutStatus.innerHTML = '<i class="fas fa-times-circle"></i> لم يسجل بعد';
-        }
-        
+
     } catch (error) {
         console.error('خطأ في جلب بيانات اليوم:', error);
     }
