@@ -235,7 +235,7 @@ async function handleFieldCheckOut() {
 async function handleLocationBasedCheckIn(location) {
     try {
         showStatusMessage('جاري التحقق من الموقع...', 'info');
-        
+
         const position = await getCurrentPosition();
         const distance = calculateDistance(
             position.coords.latitude,
@@ -243,17 +243,17 @@ async function handleLocationBasedCheckIn(location) {
             parseFloat(location.latitude),
             parseFloat(location.longitude)
         );
-        
+
         if (distance > location.radius) {
             showStatusMessage(`أنت خارج نطاق الموقع. المسافة: ${Math.round(distance)} متر`, 'error');
             return;
         }
-        
+
         const today = new Date().toISOString().split('T')[0];
-        
+
         const { data, error } = await supabase
             .from('attendance_records')
-            .upsert({
+            .insert({
                 user_id: currentUser.id,
                 date: today,
                 check_in: new Date().toISOString(),
@@ -263,15 +263,13 @@ async function handleLocationBasedCheckIn(location) {
                     accuracy: position.coords.accuracy
                 },
                 location_id: location.id
-            }, {
-                onConflict: 'user_id,date,location_id'
             });
-        
+
         if (error) throw error;
-        
+
         showStatusMessage(`تم تسجيل الحضور في ${location.name} بنجاح`, 'success');
         await loadTodayAttendance();
-        
+
     } catch (error) {
         console.error('خطأ في تسجيل الحضور:', error);
         showStatusMessage('حدث خطأ في تسجيل الحضور', 'error');
@@ -281,7 +279,7 @@ async function handleLocationBasedCheckIn(location) {
 async function handleLocationBasedCheckOut(location) {
     try {
         showStatusMessage('جاري التحقق من الموقع...', 'info');
-        
+
         const position = await getCurrentPosition();
         const distance = calculateDistance(
             position.coords.latitude,
@@ -289,14 +287,32 @@ async function handleLocationBasedCheckOut(location) {
             parseFloat(location.latitude),
             parseFloat(location.longitude)
         );
-        
+
         if (distance > location.radius) {
             showStatusMessage(`أنت خارج نطاق الموقع. المسافة: ${Math.round(distance)} متر`, 'error');
             return;
         }
-        
+
         const today = new Date().toISOString().split('T')[0];
-        
+
+        const { data: latestRecord, error: fetchError } = await supabase
+            .from('attendance_records')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('date', today)
+            .eq('location_id', location.id)
+            .is('check_out', null)
+            .order('check_in', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (fetchError) throw fetchError;
+
+        if (!latestRecord) {
+            showStatusMessage(`لا يوجد حضور مسجل في ${location.name} لتسجيل الانصراف`, 'error');
+            return;
+        }
+
         const { data, error } = await supabase
             .from('attendance_records')
             .update({
@@ -307,15 +323,13 @@ async function handleLocationBasedCheckOut(location) {
                     accuracy: position.coords.accuracy
                 }
             })
-            .eq('user_id', currentUser.id)
-            .eq('date', today)
-            .eq('location_id', location.id);
-        
+            .eq('id', latestRecord.id);
+
         if (error) throw error;
-        
+
         showStatusMessage(`تم تسجيل الانصراف من ${location.name} بنجاح`, 'success');
         await loadTodayAttendance();
-        
+
     } catch (error) {
         console.error('خطأ في تسجيل الانصراف:', error);
         showStatusMessage('حدث خطأ في تسجيل الانصراف', 'error');
