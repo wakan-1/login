@@ -685,13 +685,13 @@ function setupModalEventListeners() {
     document.getElementById('modalRole').addEventListener('change', handleRoleChange);
 }
 
-function handleRoleChange() {
+async function handleRoleChange() {
     const role = document.getElementById('modalRole').value;
     const locationsGroup = document.getElementById('userLocationsGroup');
-    
+
     if (role === 'field_user') {
         locationsGroup.style.display = 'block';
-        loadLocationCheckboxes();
+        await loadLocationCheckboxes();
     } else {
         locationsGroup.style.display = 'none';
     }
@@ -954,10 +954,10 @@ async function loadUserData(userId) {
         document.getElementById('modalEmployeeId').value = user.employee_id;
         document.getElementById('modalRole').value = user.role;
         document.getElementById('passwordGroup').style.display = 'none';
-        
+
         // Handle role-specific UI
-        handleRoleChange();
-        
+        await handleRoleChange();
+
         // Load user locations if field user
         if (user.role === 'field_user') {
             await loadUserLocationAssignments(userId);
