@@ -1082,30 +1082,35 @@ async function saveUser(e) {
                 options: {
                     data: {
                         full_name: fullName,
-                        employee_id: employeeId,
-                        role
+                        employee_id: employeeId
                     }
                 }
             });
-            
+
             if (authError) throw authError;
-            
-            // Insert user data
-            const { error: insertError } = await supabase
-                .from('users')
-                .insert({
-                    id: authData.user.id,
-                    email,
-                    full_name: fullName,
-                    employee_id: employeeId,
-                    role
-                });
-            
-            if (insertError) throw insertError;
-            
+
+            userId = authData.user.id;
+
+            // Set user role via edge function
+            const setRoleResponse = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/set-user-role`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId, role })
+                }
+            );
+
+            if (!setRoleResponse.ok) {
+                throw new Error('Failed to set user role');
+            }
+
             // Add user locations if field user
             if (role === 'field_user') {
-                await updateUserLocations(authData.user.id);
+                await updateUserLocations(userId);
             }
         }
         
