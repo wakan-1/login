@@ -5,22 +5,29 @@ let allUsers = [];
 let allLocations = [];
 let userLocations = [];
 
+// Get Supabase client from window
+const supabase = window.supabaseClient;
+
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    initializeApp();
+    if (supabase) {
+        initializeApp();
+    } else {
+        console.error('Supabase client not initialized');
+    }
 });
 
 async function initializeApp() {
     try {
         // Check if user is already logged in
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session) {
             await handleSuccessfulLogin(session);
         } else {
             showLoginForm();
         }
-        
+
         // Listen for auth changes
         supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session) {
@@ -29,7 +36,7 @@ async function initializeApp() {
                 showLoginForm();
             }
         });
-        
+
     } catch (error) {
         console.error('خطأ في تهيئة التطبيق:', error);
         showError('حدث خطأ في تحميل التطبيق');

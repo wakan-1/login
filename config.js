@@ -13,18 +13,16 @@ const OFFICE_LOCATION = {
 // Initialize Supabase client
 let supabase = null;
 
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    if (window.supabase && window.supabase.createClient) {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: {
-                autoRefreshToken: true,
-                persistSession: true,
-                detectSessionInUrl: false
-            }
-        });
-        console.log('تم تحميل Supabase بنجاح');
-    } else {
-        console.error('فشل في تحميل مكتبة Supabase');
-    }
-});
+if (window.supabase && window.supabase.createClient) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: false
+        }
+    });
+    window.supabaseClient = supabase;
+    console.log('تم تحميل Supabase بنجاح');
+} else {
+    console.error('فشل في تحميل مكتبة Supabase');
+}
